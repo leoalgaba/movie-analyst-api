@@ -5,6 +5,81 @@ var app = express();
 var jwt = require('express-jwt');
 var rsaValidation = require('auth0-api-jwt-rsa-validation');
 
+// Middleware para validar el token de acceso cuando nuestro API se llama.
+// Los datos los copiamos de la API creada.
+var jwtCheck = jwt({
+  					secret: rsaValidation(),
+  					algorithms: ['RS256'],
+  					issuer: "https://leoalgaba.eu.auth0.com/",
+  					audience: 'http://movieanalyst.com'
+				});
+
+var guard = function (req, res, next) {
+	// Vamos a utilizar una sentencia switch case para el itinerario solicitado
+	switch(req.path){
+		// Si la solicitud es para reseñas de películas vamos a comprobar para ver si el elemento tiene alcance general.
+		case '/movies': {
+			var permissions = ['general'];
+			for (var i=0; i<permissions.length; i++){
+				if(req.user.scope.includes(permissions[i])){
+					next();
+				} else {
+					res.send(403, {message:'Prohibido'})
+				}
+			}
+			break;
+		}
+		// lo mismo para las revisiones (reviewers)
+		case '/reviewers': {
+			var permissions = ['general'];
+			for (var i=0; i<permissions.length; i++){
+				if(req.user.scope.includes(permissions[i])){
+					next();
+				} else {
+					res.send(403, {message:'Prohibido'})
+				}
+			}
+			break;
+		}
+		// lo mismo para publicaciones
+		case '/publications': {
+			var permissions = ['general'];
+			for (var i=0; i<permissions.length; i++){
+				if(req.user.scope.includes(permissions[i])){
+					next();
+				} else {
+					res.send(403, {message:'Prohibido'})
+				}
+			}
+			break;
+		}
+		// Para la ruta pendiente (pending) , vamos a comprobar para asegurarse de que el token tiene el alcance de administrador antes de devolver los resultados
+		case '/pending':{
+			var permissions =['admin'];
+			console.log(req.user.scope);
+			for (var i=0; i<permissions.length; i++){
+				if (req.user.scope.includes(permissions[i])){
+					next();
+				} else {
+					res.send(403, {message:'Prohibido'});
+				}
+			}
+			break;
+		}
+	}
+};
+
+// Permitir el uso del middleware jwtCheck en todas nuestras rutas
+app.use(jwtCheck);
+app.use(guard);
+
+// Si no obtenemos las credenciales correctas , enviamos un mensaje apropiado.
+app.use(function (err, req, res, next) {
+  if (err.name === 'UnauthorizedError') {
+		res.status(401).json({Mensaje:'Falta token o desautorizado'});
+  }
+});
+
 // Implementamos el endpoint movies de la API
 app.get('/movies', function (req,res) {
 	// Lista de peliculas
